@@ -1,0 +1,5 @@
+const modifier = (text) => {
+  text = ReputationSystem("input", text);
+  return text;
+};
+modifier(text);

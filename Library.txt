@@ -1,0 +1,109 @@
+//Reputation Tracking Script "RTS" By RustyPawz https://rustypawz.neocities.org/ //
+//With help From LewdLeah https://play.aidungeon.com/profile/LewdLeah //
+function ReputationSystem(stage, text, stop = false) {
+  if (!state.reputation) state.reputation = 0;
+  if (!state.lastReputationChange) state.lastReputationChange = null;
+  if (!state.previousActionText) state.previousActionText = "";
+//eddit these titles for your own scenario//
+  const reputationTitles = [
+    { threshold: -1000, title: "Outcast" },
+    { threshold: -900, title: "Despised" },
+    { threshold: -800, title: "Villain" },
+    { threshold: -700, title: "Dishonored" },
+    { threshold: -600, title: "Feared" },
+    { threshold: -500, title: "Troublemaker" },
+    { threshold: -400, title: "Rogue" },
+    { threshold: -300, title: "Shady" },
+    { threshold: -200, title: "Dubious" },
+    { threshold: -100, title: "Neutral" },
+    { threshold: 0, title: "Citizen" },
+    { threshold: 100, title: "Trusted" },
+    { threshold: 200, title: "Respected" },
+    { threshold: 300, title: "Honored" },
+    { threshold: 400, title: "Heroic" },
+    { threshold: 500, title: "Champion" },
+    { threshold: 600, title: "Legendary" },
+    { threshold: 700, title: "Icon" },
+    { threshold: 800, title: "Paragon" },
+    { threshold: 900, title: "Mythic" },
+    { threshold: 1000, title: "Ascended" }
+  ];
+
+  function getReputationTitle(score) {
+    return reputationTitles.reduce((current, next) =>
+      score >= next.threshold ? next : current
+    ).title;
+  }
+//you can edit or add more trigger words, and assign poing values (+/-)1-5)//
+  const positiveWords = {
+    "thank": 1, "brave": 2, "hero": 3, "trust": 2, "kind": 2,
+    "generous": 3, "saved": 4, "honor": 2, "protect": 2,
+    "help": 2, "assist": 1, "rescue": 3, "heal": 2, "honest": 2,
+    "respect": 2, "grateful": 1, "friend": 1, "peaceful": 1,
+    "loyal": 2, "courageous": 3
+  };
+
+  const negativeWords = {
+    "kill": -5, "murder": -5, "hate": -3, "traitor": -4,
+    "fear": -2, "coward": -2, "liar": -2, "thief": -3,
+    "monster": -3, "cruel": -2, "attack": -3, "abandon": -2,
+    "betray": -4, "enemy": -2, "destroy": -3, "disgrace": -2,
+    "hurt": -3, "evil": -3, "corrupt": -3, "selfish": -2
+  };
+
+  if (stage === "context") {
+    const recent = history.filter(e => e.type !== "see");
+    const lastAction = recent[recent.length - 1];
+    const prevText = state.previousActionText;
+    const isRetry = lastAction?.text === prevText;
+
+    if (isRetry && state.lastReputationChange !== null) {
+      state.reputation -= state.lastReputationChange;
+      state.lastReputationChange = null;
+      message = "⏪ Retry detected. Reputation change undone.";
+    } else {
+      state.previousActionText = lastAction?.text;
+    }
+
+    // Add reputation to AI context
+    const title = getReputationTitle(state.reputation);
+    state.memory.context = `Reputation: ${state.reputation} (${title})\n`;
+
+    return [text, stop];
+  }
+
+  if (stage === "output") {
+    let scoreDelta = 0;
+    const lowerText = text.toLowerCase();
+    const matchedWords = [];
+
+    for (const [word, value] of Object.entries(positiveWords)) {
+      if (lowerText.includes(word)) {
+        scoreDelta += value;
+        matchedWords.push(`“${word}” (+${value})`);
+      }
+    }
+
+    for (const [word, value] of Object.entries(negativeWords)) {
+      if (lowerText.includes(word)) {
+        scoreDelta += value;
+        matchedWords.push(`“${word}” (${value})`);
+      }
+    }
+
+    if (scoreDelta !== 0) {
+      state.reputation = Math.max(-1000, Math.min(1000, state.reputation + scoreDelta));
+      state.lastReputationChange = scoreDelta;
+      const title = getReputationTitle(state.reputation);
+      const direction = scoreDelta > 0 ? "increased" : "decreased";
+      const wordList = matchedWords.join(", ");
+      text = `📣 Your reputation has ${direction}!\n🏅 Current Title: ${title} (${state.reputation})\n📌 Triggered by: ${wordList}\n\n` + text;
+    } else {
+      state.lastReputationChange = null;
+    }
+
+    return text;
+  }
+
+  return text;
+}

@@ -1,0 +1,7 @@
+globalThis.stop ??= false;
+
+const modifier = (text, stop) => {
+  [text, stop] = ReputationSystem("context", text, stop);
+  return { text, stop };
+};
+modifier(text, stop);
